@@ -10,9 +10,9 @@ st.set_page_config(
 # --- HEADER ---
 st.markdown("""
 <div style='text-align:center; padding:40px 0 20px 0;'>
-    <h1 style='color:#EC4400; margin-bottom:10px;'>🛠️ Validateur de Données Excel</h1>
+    <h1 style='color:#EC4400; margin-bottom:10px;'>🛠️ Validateur de Données</h1>
     <p style='font-size:18px; color:#666;'>
-        Validez vos fichiers Excel avec des références locales
+        Validez vos fichiers Excel avec des données sources de SAGE X3
     </p>
 </div>
 """, unsafe_allow_html=True)
@@ -46,6 +46,6 @@ with col2:
 
 st.markdown("""
 <div style='text-align:center; margin-top:30px; padding:15px; background:#f8f9fa; border-radius:8px; border-left:4px solid #EC4400;'>
-    💡 <strong>Conseil :</strong> Importez votre fichier Excel, puis validez-le avec nos références prédéfinies
+    💡 <strong>Conseil :</strong> Importez votre fichier Excel, puis validez-le !
 </div>
 """, unsafe_allow_html=True)
