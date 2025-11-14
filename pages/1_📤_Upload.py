@@ -7,7 +7,7 @@ st.set_page_config(page_title="Étape 1 - Upload Excel", page_icon="📤", layou
 # Header avec progression
 st.markdown("""
 <div style='text-align:center; margin-bottom:30px;'>
-    <div style='color:#999; font-size:14px; margin-bottom:5px;'>Étape 1 / 4</div>
+    <div style='color:#999; font-size:14px; margin-bottom:5px;'>Étape 1 / 3</div>
     <h2 style='color:#EC4400; margin:0;'>📤 Import du fichier Excel</h2>
 </div>
 """, unsafe_allow_html=True)
@@ -15,7 +15,7 @@ st.markdown("""
 # Barre de progression
 st.markdown("""
 <div style='width:100%; height:6px; background:#e0e0e0; border-radius:3px; margin:20px 0;'>
-    <div style='width:25%; height:100%; background:#EC4400; border-radius:3px;'></div>
+    <div style='width:33%; height:100%; background:#EC4400; border-radius:3px;'></div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -107,7 +107,7 @@ with col1:
 
 with col2:
     is_disabled = "uploaded_data" not in st.session_state
-    if st.button("Suivant : Connexion SQL ➡️", use_container_width=True, 
+    if st.button("Suivant : Validation ➡️", use_container_width=True, 
                  type="primary", disabled=is_disabled):
-        st.switch_page("pages/2_🔌_Connexion.py")
+        st.switch_page("pages/3_🔍_Validation.py")
 st.markdown("</div>", unsafe_allow_html=True)

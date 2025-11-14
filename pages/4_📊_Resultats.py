@@ -1,27 +1,26 @@
 import streamlit as st
 import pandas as pd
-from io import BytesIO
 
 # Configuration
-st.set_page_config(page_title="Étape 4 - Résultats", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Étape 3 - Résultats", page_icon="📊", layout="wide")
 
 # Vérifier les prérequis
 if "uploaded_data" not in st.session_state:
     st.warning("⚠️ Vous devez d'abord importer un fichier Excel.")
     if st.button("⬅️ Retour à l'étape 1"):
-        st.switch_page("pages/1_Upload.py")
+        st.switch_page("pages/1_📤_Upload.py")
     st.stop()
 
 if "resultats_validation" not in st.session_state:
     st.warning("⚠️ Vous devez d'abord exécuter la validation.")
-    if st.button("⬅️ Retour à l'étape 3"):
-        st.switch_page("pages/3_Validation.py")
+    if st.button("⬅️ Retour à l'étape 2"):
+        st.switch_page("pages/3_🔍_Validation.py")
     st.stop()
 
 # Header avec progression
 st.markdown("""
 <div style='text-align:center; margin-bottom:30px;'>
-    <div style='color:#999; font-size:14px; margin-bottom:5px;'>Étape 4 / 4</div>
+    <div style='color:#999; font-size:14px; margin-bottom:5px;'>Étape 3 / 3</div>
     <h2 style='color:#EC4400; margin:0;'>📊 Résultats de la validation</h2>
 </div>
 """, unsafe_allow_html=True)
@@ -91,15 +90,17 @@ with col4:
 
 st.markdown("<div style='margin:40px 0;'>", unsafe_allow_html=True)
 
+# Information sur la validation
+st.markdown(f"""
+<div style='padding:15px; background:#f0f2f6; border-radius:8px; margin-bottom:20px;'>
+    <strong>Validation effectuée :</strong> {resultats['colonne_excel']} ➡️ {resultats['fichier_reference']}.{resultats['colonne_reference']}
+</div>
+""", unsafe_allow_html=True)
+
 # Onglets pour afficher les différentes vues
 tab1, tab2, tab3 = st.tabs(["📋 Toutes les données", "✅ Valides uniquement", "❌ Invalides uniquement"])
 
 with tab1:
-    st.markdown(f"""
-    <div style='margin-bottom:15px;'>
-        <strong>Validation :</strong> {resultats['colonne_excel']} ➡️ {resultats['table_bd']}.{resultats['colonne_bd']}
-    </div>
-    """, unsafe_allow_html=True)
     st.dataframe(df_resultats, use_container_width=True, height=400)
 
 with tab2:
@@ -127,53 +128,6 @@ with tab3:
         st.success("🎉 Aucune valeur invalide !")
 
 st.markdown("</div>", unsafe_allow_html=True)
-
-# Export des résultats
-st.markdown("<h3 style='margin-top:40px;'>💾 Export des résultats</h3>", unsafe_allow_html=True)
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    # Export Excel complet
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df_resultats.to_excel(writer, sheet_name='Résultats_complets', index=False)
-        if lignes_invalides > 0:
-            donnees_invalides.to_excel(writer, sheet_name='Valeurs_invalides', index=False)
-    
-    st.download_button(
-        label="📥 Rapport complet (Excel)",
-        data=output.getvalue(),
-        file_name=f"validation_complete_{resultats['colonne_excel']}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True
-    )
-
-with col2:
-    # Export CSV
-    csv = df_resultats.to_csv(index=False).encode('utf-8')
-    st.download_button(
-        label="📄 Export CSV",
-        data=csv,
-        file_name=f"validation_{resultats['colonne_excel']}.csv",
-        mime="text/csv",
-        use_container_width=True
-    )
-
-with col3:
-    # Export invalides uniquement
-    if lignes_invalides > 0:
-        output_inv = BytesIO()
-        with pd.ExcelWriter(output_inv, engine='openpyxl') as writer:
-            donnees_invalides.to_excel(writer, sheet_name='Invalides', index=False)
-        
-        st.download_button(
-            label="⚠️ Invalides uniquement",
-            data=output_inv.getvalue(),
-            file_name=f"invalides_{resultats['colonne_excel']}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True
-        )
 
 # Navigation
 st.markdown("<div style='margin-top:50px;'>", unsafe_allow_html=True)
