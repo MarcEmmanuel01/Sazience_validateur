@@ -34,7 +34,7 @@ df = st.session_state.uploaded_data
 st.markdown("<h4 style='margin-top:30px;'>1️⃣ Sélection du fichier de référence</h4>", unsafe_allow_html=True)
 
 # Chemin vers le dossier de référence
-REFERENCE_FOLDER = "LES_TABLES"
+REFERENCE_FOLDER = "SOURCES"
 
 # Lister les fichiers Excel disponibles
 try:
@@ -65,109 +65,204 @@ try:
 except Exception as e:
     st.error(f"❌ Erreur lors du chargement des fichiers : {str(e)}")
 
-# Section 2 : Mapping des colonnes
+# Section 2 : Mapping des colonnes (MULTI-SÉLECTION)
 if 'df_reference' in st.session_state:
-    st.markdown("<h4 style='margin-top:30px;'>2️⃣ Mapping des colonnes</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='margin-top:30px;'>2️⃣ Configuration des validations</h4>", unsafe_allow_html=True)
     
-    col1, col2 = st.columns(2)
+    # Initialiser le nombre de paires si pas déjà fait
+    if 'nb_mappings' not in st.session_state:
+        st.session_state.nb_mappings = 1
     
-    with col1:
-        st.markdown("**📤 Colonne Excel (à valider)**")
-        colonne_excel = st.selectbox(
-            "Sélectionnez la colonne à valider dans votre fichier",
-            options=df.columns.tolist(),
-            key="col_excel"
-        )
+    # Boutons pour ajouter/retirer des mappings
+    col_btn1, col_btn2, col_spacer = st.columns([1, 1, 2])
+    with col_btn1:
+        if st.button("➕ Ajouter une validation", use_container_width=True):
+            st.session_state.nb_mappings += 1
+            st.rerun()
+    with col_btn2:
+        if st.button("➖ Retirer la dernière", use_container_width=True, 
+                     disabled=st.session_state.nb_mappings <= 1):
+            st.session_state.nb_mappings -= 1
+            st.rerun()
     
-    with col2:
-        st.markdown("**🗃️ Colonne de Référence**")
-        colonne_reference = st.selectbox(
-            "Sélectionnez la colonne de référence",
-            options=st.session_state.df_reference.columns.tolist(),
-            key="col_ref"
-        )
-
-# Section 3 : Lancer la validation
-if 'col_excel' in st.session_state and 'col_ref' in st.session_state:
+    st.markdown("<div style='margin:20px 0;'>", unsafe_allow_html=True)
+    
+    # Créer les paires de sélection
+    mappings = []
+    for i in range(st.session_state.nb_mappings):
+        st.markdown(f"""
+        <div style='background:#f8f9fa; padding:15px; border-radius:8px; margin:15px 0; border-left:4px solid #EC4400;'>
+            <strong>Validation #{i+1}</strong>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**📤 Colonne Excel (à valider)**")
+            colonne_excel = st.selectbox(
+                f"Colonne à valider",
+                options=df.columns.tolist(),
+                key=f"col_excel_{i}",
+                label_visibility="collapsed"
+            )
+        
+        with col2:
+            st.markdown("**🗃️ Colonne de Référence**")
+            colonne_reference = st.selectbox(
+                f"Colonne de référence",
+                options=st.session_state.df_reference.columns.tolist(),
+                key=f"col_ref_{i}",
+                label_visibility="collapsed"
+            )
+        
+        mappings.append({
+            'excel': colonne_excel,
+            'reference': colonne_reference
+        })
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Section 3 : Lancer la validation
     st.markdown("<div style='margin-top:40px;'>", unsafe_allow_html=True)
     
-    if st.button("🚀 Lancer la validation", use_container_width=True, type="primary"):
+    if st.button("🚀 Lancer toutes les validations", use_container_width=True, type="primary"):
         with st.spinner("Validation en cours..."):
             try:
-                # Récupérer les données
                 df_ref = st.session_state.df_reference
-                colonne_excel = st.session_state.col_excel
-                colonne_reference = st.session_state.col_ref
+                tous_resultats = []
                 
-                # Récupérer les valeurs de référence
-                valeurs_reference = set(df_ref[colonne_reference].dropna().astype(str).unique())
+                # Valider chaque paire
+                for idx, mapping in enumerate(mappings):
+                    colonne_excel = mapping['excel']
+                    colonne_reference = mapping['reference']
+                    
+                    # Récupérer les valeurs de référence (NETTOYÉES)
+                    valeurs_reference = set(
+                        str(v).strip().upper() 
+                        for v in df_ref[colonne_reference].dropna().unique()
+                    )
+                    
+                    # Récupérer les valeurs du fichier uploadé (NETTOYÉES)
+                    valeurs_excel_brutes = df[colonne_excel].dropna()
+                    valeurs_excel_uniques = valeurs_excel_brutes.astype(str).str.strip().str.upper().unique()
+                    
+                    # Comparer (valeurs uniques)
+                    valeurs_valides_uniques = [v for v in valeurs_excel_uniques if v in valeurs_reference]
+                    valeurs_invalides_uniques = [v for v in valeurs_excel_uniques if v not in valeurs_reference]
+                    
+                    # Calculer le nombre de LIGNES affectées
+                    valeurs_excel_nettoyees = valeurs_excel_brutes.astype(str).str.strip().str.upper()
+                    nb_lignes_valides = valeurs_excel_nettoyees.isin(valeurs_reference).sum()
+                    nb_lignes_invalides = (~valeurs_excel_nettoyees.isin(valeurs_reference)).sum()
+                    
+                    tous_resultats.append({
+                        'index': idx + 1,
+                        'valeurs_valides_uniques': valeurs_valides_uniques,
+                        'valeurs_invalides_uniques': valeurs_invalides_uniques,
+                        'nb_lignes_valides': int(nb_lignes_valides),
+                        'nb_lignes_invalides': int(nb_lignes_invalides),
+                        'colonne_excel': colonne_excel,
+                        'colonne_reference': colonne_reference,
+                        'total_reference': len(valeurs_reference),
+                        'total_valeurs_excel': len(valeurs_excel_uniques)
+                    })
                 
-                # Récupérer les valeurs du fichier uploadé
-                valeurs_excel = df[colonne_excel].dropna().astype(str).unique()
-                
-                # Comparer
-                valeurs_valides = [v for v in valeurs_excel if v in valeurs_reference]
-                valeurs_invalides = [v for v in valeurs_excel if v not in valeurs_reference]
-                
-                # Sauvegarder les résultats
+                # Sauvegarder tous les résultats
                 st.session_state.resultats_validation = {
-                    'valides': valeurs_valides,
-                    'invalides': valeurs_invalides,
-                    'colonne_excel': colonne_excel,
-                    'colonne_reference': colonne_reference,
-                    'fichier_reference': st.session_state.selected_file,
-                    'total_reference': len(valeurs_reference)
+                    'validations': tous_resultats,
+                    'fichier_reference': st.session_state.selected_file
                 }
                 
-                # Afficher les résultats
-                total = len(valeurs_valides) + len(valeurs_invalides)
-                taux = (len(valeurs_valides) / total * 100) if total > 0 else 0
+                # Afficher un résumé
+                st.markdown("<h3 style='margin-top:30px;'>📊 Résumé des validations</h3>", unsafe_allow_html=True)
                 
-                st.markdown(f"""
-                <div style='text-align:center; margin:30px 0;'>
-                    <div style='font-size:48px; color:#EC4400; font-weight:bold; margin-bottom:10px;'>
-                        {taux:.1f}%
-                    </div>
-                    <div style='font-size:18px; color:#666;'>Taux de validation</div>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                col1, col2, col3 = st.columns(3)
-                with col1:
+                for resultat in tous_resultats:
+                    # Taux basé sur les VALEURS UNIQUES
+                    total_valeurs = len(resultat['valeurs_valides_uniques']) + len(resultat['valeurs_invalides_uniques'])
+                    taux_valeurs = (len(resultat['valeurs_valides_uniques']) / total_valeurs * 100) if total_valeurs > 0 else 0
+                    
+                    # Taux basé sur les LIGNES
+                    total_lignes = resultat['nb_lignes_valides'] + resultat['nb_lignes_invalides']
+                    taux_lignes = (resultat['nb_lignes_valides'] / total_lignes * 100) if total_lignes > 0 else 0
+                    
+                    # Déterminer la couleur selon le taux
+                    if taux_valeurs == 100:
+                        bg_color = "#d4edda"
+                        border_color = "#28a745"
+                    elif taux_valeurs >= 80:
+                        bg_color = "#fff3cd"
+                        border_color = "#ffc107"
+                    else:
+                        bg_color = "#f8d7da"
+                        border_color = "#dc3545"
+                    
                     st.markdown(f"""
-                    <div style='padding:20px; background:#d4edda; border-radius:8px; text-align:center;'>
-                        <div style='font-size:32px; color:#28a745; font-weight:bold;'>{len(valeurs_valides)}</div>
-                        <div style='color:#155724;'>✅ Valeurs valides</div>
-                    </div>
+                    <div style='background:{bg_color}; padding:20px; border-radius:8px; margin:15px 0; border-left:5px solid {border_color};'>
+                        <h4 style='color:#333; margin-top:0;'>✓ Validation #{resultat['index']} : {resultat['colonne_excel']}</h4>
+                        <div style='color:#666; font-size:13px; margin-bottom:10px;'>
+                            Comparé avec : <strong>{resultat['colonne_reference']}</strong>
+                        </div>
                     """, unsafe_allow_html=True)
-                with col2:
-                    st.markdown(f"""
-                    <div style='padding:20px; background:#f8d7da; border-radius:8px; text-align:center;'>
-                        <div style='font-size:32px; color:#dc3545; font-weight:bold;'>{len(valeurs_invalides)}</div>
-                        <div style='color:#721c24;'>❌ Valeurs invalides</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                with col3:
-                    st.markdown(f"""
-                    <div style='padding:20px; background:#e2e3e5; border-radius:8px; text-align:center;'>
-                        <div style='font-size:32px; color:#6c757d; font-weight:bold;'>{st.session_state.resultats_validation['total_reference']}</div>
-                        <div style='color:#383d41;'>📊 Références totales</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                # Afficher les détails
-                with st.expander("📋 Détails des valeurs invalides"):
-                    if valeurs_invalides:
-                        st.write("**Valeurs non trouvées dans le fichier de référence :**")
-                        for i, valeur in enumerate(valeurs_invalides[:50]):  # Limite à 50 premières
-                            st.write(f"- {valeur}")
-                        if len(valeurs_invalides) > 50:
-                            st.write(f"... et {len(valeurs_invalides) - 50} autres")
+                    
+                    col1, col2, col3, col4, col5 = st.columns(5)
+                    
+                    with col1:
+                        st.markdown(f"""
+                        <div style='text-align:center;'>
+                            <div style='font-size:28px; color:#EC4400; font-weight:bold;'>{taux_valeurs:.1f}%</div>
+                            <div style='font-size:11px; color:#666;'>Taux valeurs</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    with col2:
+                        st.markdown(f"""
+                        <div style='text-align:center;'>
+                            <div style='font-size:22px; color:#28a745; font-weight:bold;'>{len(resultat['valeurs_valides_uniques'])}</div>
+                            <div style='font-size:11px; color:#666;'>✅ Valeurs OK</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    with col3:
+                        st.markdown(f"""
+                        <div style='text-align:center;'>
+                            <div style='font-size:22px; color:#dc3545; font-weight:bold;'>{len(resultat['valeurs_invalides_uniques'])}</div>
+                            <div style='font-size:11px; color:#666;'>❌ Valeurs KO</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    with col4:
+                        st.markdown(f"""
+                        <div style='text-align:center;'>
+                            <div style='font-size:22px; color:#17a2b8; font-weight:bold;'>{resultat['nb_lignes_valides']}</div>
+                            <div style='font-size:11px; color:#666;'>📄 Lignes valides</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    with col5:
+                        st.markdown(f"""
+                        <div style='text-align:center;'>
+                            <div style='font-size:22px; color:#6c757d; font-weight:bold;'>{resultat['total_reference']}</div>
+                            <div style='font-size:11px; color:#666;'>📊 Références</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    st.markdown("</div>", unsafe_allow_html=True)
+                    
+                    # Afficher les valeurs invalides si présentes
+                    if resultat['valeurs_invalides_uniques']:
+                        with st.expander(f"🔍 Voir les {len(resultat['valeurs_invalides_uniques'])} valeurs UNIQUES invalides"):
+                            st.warning(f"Ces valeurs apparaissent dans {resultat['nb_lignes_invalides']} lignes au total")
+                            for i, valeur in enumerate(resultat['valeurs_invalides_uniques'][:100]):
+                                st.write(f"- {valeur}")
+                            if len(resultat['valeurs_invalides_uniques']) > 100:
+                                st.write(f"... et {len(resultat['valeurs_invalides_uniques']) - 100} autres")
                     else:
                         st.success("🎉 Toutes les valeurs sont valides !")
                 
             except Exception as e:
                 st.error(f"❌ Erreur lors de la validation : {str(e)}")
+                st.exception(e)
     
     st.markdown("</div>", unsafe_allow_html=True)
 
